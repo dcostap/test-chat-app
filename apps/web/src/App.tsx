@@ -204,135 +204,95 @@ export default function App() {
   }
 
   return (
-    <div className="page-shell">
-      <div className="ambient ambient-left" />
-      <div className="ambient ambient-right" />
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <h1>Assistant</h1>
+          <button className="primary-button secondary-button" onClick={() => void createChat()} type="button">
+            New chat
+          </button>
+        </div>
 
-      <div className="app-shell">
-        <aside className="sidebar">
-          <div className="sidebar-header">
-            <div className="brand-block">
-              <span className="brand-dot" />
-              <div>
-                <p className="sidebar-label">Workspace</p>
-                <h1>Assistant</h1>
+        <div className="sidebar-section">
+          <div className="sidebar-section-header">
+            <span className="sidebar-label">Chats</span>
+            {loadingChats ? <span className="muted">Syncing</span> : null}
+          </div>
+
+          <div className="chat-list">
+            <button
+              className={`chat-list-item ${isDraftChat ? "is-active" : ""}`}
+              onClick={() => void createChat()}
+              type="button"
+            >
+              <span className="chat-list-title">{DEFAULT_NEW_CHAT_TITLE}</span>
+            </button>
+
+            {chats.map((chat) => (
+              <button
+                key={chat.id}
+                className={`chat-list-item ${chat.id === selectedChatId ? "is-active" : ""}`}
+                onClick={() => setSelectedChatId(chat.id)}
+                type="button"
+              >
+                <span className="chat-list-title">{chat.title}</span>
+                <span className="timestamp">{formatTimestamp(chat.updatedAt) || "Just now"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      <main className="chat-panel">
+        <header className="chat-header">
+          <h2>{selectedChat?.title ?? DEFAULT_NEW_CHAT_TITLE}</h2>
+          <div className="chat-header-meta">
+            {configuredModelLabel ? <span className="status-pill">{configuredModelLabel}</span> : null}
+            {selectedAssistantModel?.providerID && selectedAssistantModel.modelID ? (
+              <span className="status-pill subtle-pill">{selectedAssistantModel.providerID}/{selectedAssistantModel.modelID}</span>
+            ) : null}
+          </div>
+        </header>
+
+        {error ? <p className="error-banner">{error}</p> : null}
+
+        <section className="message-list" ref={messageListRef}>
+          {!isDraftChat && loadingMessages ? <p className="muted">Loading messages...</p> : null}
+
+          {messages.map((message) => (
+            <article key={message.id} className={`message message-${message.role}`}>
+              <div className="message-meta">
+                <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
+                <span>{formatTimestamp(message.createdAt)}</span>
               </div>
-            </div>
-            <button className="primary-button secondary-button" onClick={() => void createChat()} type="button">
-              New chat
+              {message.role === "assistant" && message.providerID && message.modelID ? (
+                <div className="message-model">{`${message.providerID}/${message.modelID}`}</div>
+              ) : null}
+              <p>{message.text}</p>
+            </article>
+          ))}
+
+          {sending ? <div className="typing-indicator">Working on a reply...</div> : null}
+        </section>
+
+        <form className="composer" onSubmit={onSubmit}>
+          <textarea
+            aria-label="Message"
+            className="composer-input"
+            disabled={sending}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onComposerKeyDown}
+            placeholder="Message"
+            rows={3}
+            value={draft}
+          />
+          <div className="composer-actions">
+            <button className="primary-button" disabled={sending || !draft.trim()} type="submit">
+              {sending ? "Sending..." : "Send"}
             </button>
           </div>
-
-          <button
-            className={`draft-chat-card ${isDraftChat ? "is-active" : ""}`}
-            onClick={() => void createChat()}
-            type="button"
-          >
-            <span className="draft-chat-title">New chat</span>
-            <span className="draft-chat-copy">Start from an empty thread</span>
-          </button>
-
-          <div className="sidebar-section">
-            <div className="sidebar-section-header">
-              <span className="sidebar-label">Recent</span>
-              {loadingChats ? <span className="muted">Syncing</span> : null}
-            </div>
-
-            <div className="chat-list">
-              {!loadingChats && chats.length === 0 ? <p className="muted">No saved chats yet.</p> : null}
-
-              {chats.map((chat) => (
-                <button
-                  key={chat.id}
-                  className={`chat-list-item ${chat.id === selectedChatId ? "is-active" : ""}`}
-                  onClick={() => setSelectedChatId(chat.id)}
-                  type="button"
-                >
-                  <span className="chat-list-title">{chat.title}</span>
-                  <span className="timestamp">{formatTimestamp(chat.updatedAt) || "Just now"}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="sidebar-footer">
-            <span className="status-pill">
-              <span className="status-dot" />
-              Internal demo
-            </span>
-          </div>
-        </aside>
-
-        <main className="chat-panel">
-          <header className="chat-header">
-            <div>
-              <p className="sidebar-label">Conversation</p>
-              <h2>{selectedChat?.title ?? DEFAULT_NEW_CHAT_TITLE}</h2>
-            </div>
-
-            <div className="chat-header-meta">
-              {configuredModelLabel ? <span className="status-pill">{configuredModelLabel}</span> : null}
-              {selectedAssistantModel?.providerID && selectedAssistantModel.modelID ? (
-                <span className="status-pill subtle-pill">
-                  Last reply: {selectedAssistantModel.providerID}/{selectedAssistantModel.modelID}
-                </span>
-              ) : null}
-            </div>
-          </header>
-
-          {error ? <p className="error-banner">{error}</p> : null}
-
-          <section className="message-list" ref={messageListRef}>
-            {isDraftChat && messages.length === 0 ? (
-              <div className="empty-state-card">
-                <span className="sidebar-label">New chat</span>
-                <h3>Ask for anything in a fresh thread.</h3>
-                <p>
-                  Start typing below. The first message will create the chat automatically and keep the same flow as
-                  existing threads.
-                </p>
-              </div>
-            ) : null}
-
-            {!isDraftChat && loadingMessages ? <p className="muted">Loading messages...</p> : null}
-            {!isDraftChat && !loadingMessages && messages.length === 0 ? <p className="empty-state">No messages yet.</p> : null}
-
-            {messages.map((message) => (
-              <article key={message.id} className={`message message-${message.role}`}>
-                <div className="message-meta">
-                  <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
-                  <span>{formatTimestamp(message.createdAt)}</span>
-                </div>
-                {message.role === "assistant" && message.providerID && message.modelID ? (
-                  <div className="message-model">{`${message.providerID}/${message.modelID}`}</div>
-                ) : null}
-                <p>{message.text}</p>
-              </article>
-            ))}
-
-            {sending ? <div className="typing-indicator">Working on a reply...</div> : null}
-          </section>
-
-          <form className="composer" onSubmit={onSubmit}>
-            <textarea
-              aria-label="Message"
-              className="composer-input"
-              disabled={sending}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={onComposerKeyDown}
-              placeholder="Ask a question or describe the task"
-              rows={3}
-              value={draft}
-            />
-            <div className="composer-actions">
-              <p className="muted">Enter to send. Shift+Enter for a new line.</p>
-              <button className="primary-button" disabled={sending || !draft.trim()} type="submit">
-                {sending ? "Sending..." : "Send"}
-              </button>
-            </div>
-          </form>
-        </main>
-      </div>
+        </form>
+      </main>
     </div>
   );
 }
