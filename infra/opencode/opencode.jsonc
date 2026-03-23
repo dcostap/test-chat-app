@@ -9,13 +9,12 @@
         "apiKey": "{env:OPENROUTER_API_KEY}"
       },
       "models": {
-        "minimax-m2.5-free": {
-          "id": "minimax/minimax-m2.5:free",
+        "minimax/minimax-m2.5:free": {
           "name": "MiniMax M2.5 Free"
         }
       }
     }
   },
-  "model": "orouter/minimax-m2.5-free",
-  "small_model": "orouter/minimax-m2.5-free"
+  "model": "orouter/minimax/minimax-m2.5:free",
+  "small_model": "orouter/minimax/minimax-m2.5:free"
 }
