@@ -37,6 +37,7 @@ app.use(
 );
 
 app.onError((error, c) => {
+  console.error(error);
   const status = error instanceof HTTPException ? error.status : 500;
   return c.json(
     {

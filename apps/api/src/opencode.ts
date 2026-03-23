@@ -97,7 +97,20 @@ export class OpencodeClient {
       return undefined as T;
     }
 
-    return (await response.json()) as T;
+    const text = await response.text();
+    if (!text.trim()) {
+      return undefined as T;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch (error) {
+      throw new Error(
+        `OpenCode returned a non-JSON response for ${pathname}: ${
+          error instanceof Error ? error.message : "Unknown parse error"
+        }`,
+      );
+    }
   }
 
   async health() {
