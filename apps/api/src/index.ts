@@ -1,7 +1,12 @@
 import "dotenv/config";
 
 import { serve } from "@hono/node-server";
-import { DEFAULT_NEW_CHAT_TITLE, isNonEmptyString } from "@enterprise-demo/shared";
+import {
+  DEFAULT_MODEL_ID,
+  DEFAULT_NEW_CHAT_TITLE,
+  DEFAULT_PROVIDER_ID,
+  isNonEmptyString,
+} from "@enterprise-demo/shared";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -16,8 +21,8 @@ const opencode = new OpencodeClient(
 );
 
 const modelSelection = {
-  providerID: process.env.OPENCODE_PROVIDER_ID || undefined,
-  modelID: process.env.OPENCODE_MODEL_ID || undefined,
+  providerID: process.env.OPENCODE_PROVIDER_ID?.trim() || DEFAULT_PROVIDER_ID,
+  modelID: process.env.OPENCODE_MODEL_ID?.trim() || DEFAULT_MODEL_ID,
 };
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173")
   .split(",")
@@ -54,6 +59,11 @@ app.get("/api/health", async (c) => {
     opencode: health,
   });
 });
+
+app.get("/api/meta", (c) =>
+  c.json({
+    configuredModel: modelSelection,
+  }));
 
 app.get("/api/chats", async (c) => {
   const chats = await opencode.listChats();

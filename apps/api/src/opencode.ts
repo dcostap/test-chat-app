@@ -40,6 +40,24 @@ function mapRole(role: unknown): "user" | "assistant" | "system" {
   return "user";
 }
 
+function extractModelSelection(info: Record<string, unknown>): ProviderSelection {
+  const providerID =
+    typeof info.providerID === "string"
+      ? info.providerID
+      : typeof (info.model as Record<string, unknown> | undefined)?.providerID === "string"
+        ? String((info.model as Record<string, unknown>).providerID)
+        : undefined;
+
+  const modelID =
+    typeof info.modelID === "string"
+      ? info.modelID
+      : typeof (info.model as Record<string, unknown> | undefined)?.modelID === "string"
+        ? String((info.model as Record<string, unknown>).modelID)
+        : undefined;
+
+  return { providerID, modelID };
+}
+
 export class OpencodeClient {
   private readonly client: ClientWrapper;
   private readonly authorization: string | null;
@@ -144,12 +162,18 @@ export class OpencodeClient {
     }));
 
     return result
-      .map((message) => ({
-        id: message.info.id,
-        role: mapRole(message.info.role),
-        text: extractText(message.parts as Array<Record<string, unknown>>),
-        createdAt: toIsoString(message.info.time?.created),
-      }))
+      .map((message) => {
+        const selection = extractModelSelection(message.info as Record<string, unknown>);
+
+        return {
+          id: message.info.id,
+          role: mapRole(message.info.role),
+          text: extractText(message.parts as Array<Record<string, unknown>>),
+          createdAt: toIsoString(message.info.time?.created),
+          providerID: selection.providerID,
+          modelID: selection.modelID,
+        };
+      })
       .filter((message: ChatMessage) => message.text.length > 0);
   }
 
@@ -172,6 +196,15 @@ export class OpencodeClient {
       },
     });
 
-    return this.listMessages(chatId);
+    const messages = await this.listMessages(chatId);
+    const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant");
+
+    if (lastAssistantMessage?.providerID && lastAssistantMessage.modelID) {
+      console.log(
+        `Assistant response used ${lastAssistantMessage.providerID}/${lastAssistantMessage.modelID}`,
+      );
+    }
+
+    return messages;
   }
 }

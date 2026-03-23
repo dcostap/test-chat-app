@@ -9,6 +9,13 @@ type MessagesResponse = {
   messages: ChatMessage[];
 };
 
+type MetaResponse = {
+  configuredModel: {
+    providerID: string;
+    modelID: string;
+  };
+};
+
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
     headers: {
@@ -45,6 +52,7 @@ export default function App() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [configuredModelLabel, setConfiguredModelLabel] = useState<string | null>(null);
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -52,6 +60,7 @@ export default function App() {
 
   useEffect(() => {
     void loadChats();
+    void loadMeta();
   }, []);
 
   useEffect(() => {
@@ -79,6 +88,15 @@ export default function App() {
       setError((err as Error).message);
     } finally {
       setLoadingChats(false);
+    }
+  }
+
+  async function loadMeta() {
+    try {
+      const data = await fetchJson<MetaResponse>("/api/meta");
+      setConfiguredModelLabel(`${data.configuredModel.providerID}/${data.configuredModel.modelID}`);
+    } catch {
+      setConfiguredModelLabel(null);
     }
   }
 
@@ -182,6 +200,7 @@ export default function App() {
       <main className="chat-panel">
         <header className="chat-header">
           <h2>{selectedChat?.title ?? "Chat"}</h2>
+          {configuredModelLabel ? <p className="muted">{configuredModelLabel}</p> : null}
           {error ? <p className="error-text">{error}</p> : null}
         </header>
 
@@ -198,6 +217,11 @@ export default function App() {
                 <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
                 <span>{formatTimestamp(message.createdAt)}</span>
               </div>
+              {message.role === "assistant" && message.providerID && message.modelID ? (
+                <div className="message-meta">
+                  <span>{`${message.providerID}/${message.modelID}`}</span>
+                </div>
+              ) : null}
               <p>{message.text}</p>
             </article>
           ))}
