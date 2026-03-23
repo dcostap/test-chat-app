@@ -37,7 +37,7 @@ Fast prototype monorepo for a simple chat UI backed by an OpenCode server.
 
 The frontend talks only to `apps/api`. The API proxies requests to OpenCode over HTTP.
 
-See [infra/opencode/opencode.jsonc](./infra/opencode/opencode.jsonc) for an example project config using an OpenRouter-compatible provider.
+See [infra/opencode/opencode.jsonc](./infra/opencode/opencode.jsonc) for an example project config using OpenRouter with `minimax/minimax-m2.5:free`.
 
 ### Linux Demo Server
 
@@ -62,6 +62,9 @@ See [infra/opencode/opencode.jsonc](./infra/opencode/opencode.jsonc) for an exam
    OPENCODE_BASE_URL=http://your-linux-server:4096
    OPENCODE_USERNAME=opencode
    OPENCODE_PASSWORD=change-me
+   OPENCODE_PROVIDER_ID=openrouter
+   OPENCODE_MODEL_ID=minimax/minimax-m2.5:free
+   ALLOWED_ORIGINS=http://localhost:5173,http://nelec-0:5173,http://nelec-0:4173
    ```
 
 ### Notes

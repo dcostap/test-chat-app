@@ -14,5 +14,7 @@
         }
       }
     }
-  }
+  },
+  "model": "openrouter/minimax/minimax-m2.5:free",
+  "small_model": "openrouter/minimax/minimax-m2.5:free"
 }

@@ -19,10 +19,22 @@ const modelSelection = {
   providerID: process.env.OPENCODE_PROVIDER_ID || undefined,
   modelID: process.env.OPENCODE_MODEL_ID || undefined,
 };
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const app = new Hono();
 
-app.use("/api/*", cors({ origin: "http://localhost:5173" }));
+app.use(
+  "/api/*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return allowedOrigins[0] ?? "*";
+      return allowedOrigins.includes(origin) ? origin : null;
+    },
+  }),
+);
 
 app.onError((error, c) => {
   const status = error instanceof HTTPException ? error.status : 500;
