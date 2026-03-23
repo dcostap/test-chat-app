@@ -9,12 +9,13 @@
         "apiKey": "{env:OPENROUTER_API_KEY}"
       },
       "models": {
-        "openrouter/auto": {
-          "name": "OpenRouter Auto"
+        "minimax-m2.5-free": {
+          "id": "minimax/minimax-m2.5:free",
+          "name": "MiniMax M2.5 Free"
         }
       }
     }
   },
-  "model": "openrouter/minimax/minimax-m2.5:free",
-  "small_model": "openrouter/minimax/minimax-m2.5:free"
+  "model": "openrouter/minimax-m2.5-free",
+  "small_model": "openrouter/minimax-m2.5-free"
 }
