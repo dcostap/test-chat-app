@@ -1,0 +1,18 @@
+{
+  "name": "enterprise-codex-chat-app",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace @enterprise-demo/api\" \"npm run dev --workspace @enterprise-demo/web\"",
+    "build": "npm run build --workspace @enterprise-demo/shared && npm run build --workspace @enterprise-demo/api && npm run build --workspace @enterprise-demo/web",
+    "check": "npm run check --workspace @enterprise-demo/api && npm run check --workspace @enterprise-demo/web",
+    "start": "npm run start --workspace @enterprise-demo/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

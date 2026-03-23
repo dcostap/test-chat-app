@@ -1,0 +1,24 @@
+{
+  "name": "@enterprise-demo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --target node22 --out-dir dist",
+    "check": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@enterprise-demo/shared": "0.0.0",
+    "@hono/node-server": "^1.19.4",
+    "dotenv": "^17.2.3",
+    "hono": "^4.10.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
