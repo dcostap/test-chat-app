@@ -33,6 +33,21 @@ Fast prototype monorepo for a simple chat UI backed by an OpenCode server.
 
 5. Open `http://localhost:5173`.
 
+### Frontend On Your PC, Backend On Linux
+
+If the frontend runs on your local machine and the API runs on `nelec-0`, start the web app with:
+
+```bash
+VITE_API_PROXY_TARGET=http://nelec-0:3001 npm run dev --workspace @enterprise-demo/web
+```
+
+In PowerShell:
+
+```powershell
+$env:VITE_API_PROXY_TARGET="http://nelec-0:3001"
+npm run dev --workspace @enterprise-demo/web
+```
+
 ## OpenCode Server
 
 The frontend talks only to `apps/api`. The API proxies requests to OpenCode over HTTP.
