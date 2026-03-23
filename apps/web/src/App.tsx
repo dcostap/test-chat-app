@@ -1,5 +1,5 @@
 import { DEFAULT_NEW_CHAT_TITLE, type ChatMessage, type ChatSummary } from "@enterprise-demo/shared";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ChatListResponse = {
   chats: ChatSummary[];
@@ -15,6 +15,8 @@ type MetaResponse = {
     modelID: string;
   };
 };
+
+const DRAFT_CHAT_ID = "__draft__";
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
@@ -49,7 +51,7 @@ function formatTimestamp(value: string | null): string {
 
 export default function App() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string>(DRAFT_CHAT_ID);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [configuredModelLabel, setConfiguredModelLabel] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function App() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const messageListRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     void loadChats();
@@ -64,13 +67,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!selectedChatId) return;
+    if (selectedChatId === DRAFT_CHAT_ID) {
+      setMessages([]);
+      setLoadingMessages(false);
+      return;
+    }
+
     void loadMessages(selectedChatId);
   }, [selectedChatId]);
 
+  useEffect(() => {
+    if (!messageListRef.current) return;
+    messageListRef.current.scrollTo({
+      top: messageListRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, selectedChatId, sending]);
+
   const selectedChat = useMemo(
-    () => chats.find((chat) => chat.id === selectedChatId) ?? null,
+    () =>
+      selectedChatId === DRAFT_CHAT_ID
+        ? {
+            id: DRAFT_CHAT_ID,
+            title: DEFAULT_NEW_CHAT_TITLE,
+            updatedAt: null,
+          }
+        : chats.find((chat) => chat.id === selectedChatId) ?? null,
     [chats, selectedChatId],
+  );
+  const isDraftChat = selectedChatId === DRAFT_CHAT_ID;
+  const selectedAssistantModel = useMemo(
+    () => [...messages].reverse().find((message) => message.role === "assistant" && message.providerID && message.modelID),
+    [messages],
   );
 
   async function loadChats() {
@@ -80,9 +108,8 @@ export default function App() {
     try {
       const data = await fetchJson<ChatListResponse>("/api/chats");
       setChats(data.chats);
-
-      if (!selectedChatId && data.chats.length > 0) {
-        setSelectedChatId(data.chats[0].id);
+      if (selectedChatId !== DRAFT_CHAT_ID && !data.chats.some((chat) => chat.id === selectedChatId)) {
+        setSelectedChatId(DRAFT_CHAT_ID);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -115,27 +142,17 @@ export default function App() {
   }
 
   async function createChat() {
+    setSelectedChatId(DRAFT_CHAT_ID);
+    setMessages([]);
+    setDraft("");
     setError(null);
-
-    try {
-      const data = await fetchJson<{ chat: ChatSummary }>("/api/chats", {
-        method: "POST",
-        body: JSON.stringify({ title: DEFAULT_NEW_CHAT_TITLE }),
-      });
-
-      setChats((current) => [data.chat, ...current]);
-      setSelectedChatId(data.chat.id);
-      setMessages([]);
-    } catch (err) {
-      setError((err as Error).message);
-    }
   }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
 
     const text = draft.trim();
-    if (!text || !selectedChatId || sending) return;
+    if (!text || sending) return;
 
     setSending(true);
     setError(null);
@@ -151,7 +168,20 @@ export default function App() {
     setMessages((current) => [...current, optimisticMessage]);
 
     try {
-      const data = await fetchJson<MessagesResponse>(`/api/chats/${selectedChatId}/messages`, {
+      let activeChatId = selectedChatId;
+
+      if (activeChatId === DRAFT_CHAT_ID) {
+        const chatResponse = await fetchJson<{ chat: ChatSummary }>("/api/chats", {
+          method: "POST",
+          body: JSON.stringify({ title: DEFAULT_NEW_CHAT_TITLE }),
+        });
+
+        activeChatId = chatResponse.chat.id;
+        setChats((current) => [chatResponse.chat, ...current.filter((chat) => chat.id !== chatResponse.chat.id)]);
+        setSelectedChatId(activeChatId);
+      }
+
+      const data = await fetchJson<MessagesResponse>(`/api/chats/${activeChatId}/messages`, {
         method: "POST",
         body: JSON.stringify({ text }),
       });
@@ -167,83 +197,142 @@ export default function App() {
     }
   }
 
+  function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    void onSubmit(event as unknown as FormEvent);
+  }
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div>
-            <h1>Chats</h1>
-          </div>
-          <button className="primary-button" onClick={() => void createChat()} type="button">
-            New
-          </button>
-        </div>
+    <div className="page-shell">
+      <div className="ambient ambient-left" />
+      <div className="ambient ambient-right" />
 
-        <div className="chat-list">
-          {loadingChats ? <p className="muted">Loading chats...</p> : null}
-          {!loadingChats && chats.length === 0 ? <p className="muted">No chats yet.</p> : null}
-
-          {chats.map((chat) => (
-            <button
-              key={chat.id}
-              className={`chat-list-item ${chat.id === selectedChatId ? "is-active" : ""}`}
-              onClick={() => setSelectedChatId(chat.id)}
-              type="button"
-            >
-              <span>{chat.title}</span>
-              <span className="timestamp">{formatTimestamp(chat.updatedAt)}</span>
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <main className="chat-panel">
-        <header className="chat-header">
-          <h2>{selectedChat?.title ?? "Chat"}</h2>
-          {configuredModelLabel ? <p className="muted">{configuredModelLabel}</p> : null}
-          {error ? <p className="error-text">{error}</p> : null}
-        </header>
-
-        <section className="message-list">
-          {!selectedChatId ? <p className="empty-state">Create a chat.</p> : null}
-          {selectedChatId && loadingMessages ? <p className="muted">Loading messages...</p> : null}
-          {selectedChatId && !loadingMessages && messages.length === 0 ? (
-            <p className="empty-state">No messages yet.</p>
-          ) : null}
-
-          {messages.map((message) => (
-            <article key={message.id} className={`message message-${message.role}`}>
-              <div className="message-meta">
-                <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
-                <span>{formatTimestamp(message.createdAt)}</span>
+      <div className="app-shell">
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <div className="brand-block">
+              <span className="brand-dot" />
+              <div>
+                <p className="sidebar-label">Workspace</p>
+                <h1>Assistant</h1>
               </div>
-              {message.role === "assistant" && message.providerID && message.modelID ? (
-                <div className="message-meta">
-                  <span>{`${message.providerID}/${message.modelID}`}</span>
-                </div>
-              ) : null}
-              <p>{message.text}</p>
-            </article>
-          ))}
-        </section>
-
-        <form className="composer" onSubmit={onSubmit}>
-          <textarea
-            aria-label="Message"
-            className="composer-input"
-            disabled={!selectedChatId || sending}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={selectedChatId ? "Message" : "Create a chat"}
-            rows={4}
-            value={draft}
-          />
-          <div className="composer-actions">
-            <button className="primary-button" disabled={!selectedChatId || sending || !draft.trim()} type="submit">
-              {sending ? "Sending..." : "Send"}
+            </div>
+            <button className="primary-button secondary-button" onClick={() => void createChat()} type="button">
+              New chat
             </button>
           </div>
-        </form>
-      </main>
+
+          <button
+            className={`draft-chat-card ${isDraftChat ? "is-active" : ""}`}
+            onClick={() => void createChat()}
+            type="button"
+          >
+            <span className="draft-chat-title">New chat</span>
+            <span className="draft-chat-copy">Start from an empty thread</span>
+          </button>
+
+          <div className="sidebar-section">
+            <div className="sidebar-section-header">
+              <span className="sidebar-label">Recent</span>
+              {loadingChats ? <span className="muted">Syncing</span> : null}
+            </div>
+
+            <div className="chat-list">
+              {!loadingChats && chats.length === 0 ? <p className="muted">No saved chats yet.</p> : null}
+
+              {chats.map((chat) => (
+                <button
+                  key={chat.id}
+                  className={`chat-list-item ${chat.id === selectedChatId ? "is-active" : ""}`}
+                  onClick={() => setSelectedChatId(chat.id)}
+                  type="button"
+                >
+                  <span className="chat-list-title">{chat.title}</span>
+                  <span className="timestamp">{formatTimestamp(chat.updatedAt) || "Just now"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="sidebar-footer">
+            <span className="status-pill">
+              <span className="status-dot" />
+              Internal demo
+            </span>
+          </div>
+        </aside>
+
+        <main className="chat-panel">
+          <header className="chat-header">
+            <div>
+              <p className="sidebar-label">Conversation</p>
+              <h2>{selectedChat?.title ?? DEFAULT_NEW_CHAT_TITLE}</h2>
+            </div>
+
+            <div className="chat-header-meta">
+              {configuredModelLabel ? <span className="status-pill">{configuredModelLabel}</span> : null}
+              {selectedAssistantModel?.providerID && selectedAssistantModel.modelID ? (
+                <span className="status-pill subtle-pill">
+                  Last reply: {selectedAssistantModel.providerID}/{selectedAssistantModel.modelID}
+                </span>
+              ) : null}
+            </div>
+          </header>
+
+          {error ? <p className="error-banner">{error}</p> : null}
+
+          <section className="message-list" ref={messageListRef}>
+            {isDraftChat && messages.length === 0 ? (
+              <div className="empty-state-card">
+                <span className="sidebar-label">New chat</span>
+                <h3>Ask for anything in a fresh thread.</h3>
+                <p>
+                  Start typing below. The first message will create the chat automatically and keep the same flow as
+                  existing threads.
+                </p>
+              </div>
+            ) : null}
+
+            {!isDraftChat && loadingMessages ? <p className="muted">Loading messages...</p> : null}
+            {!isDraftChat && !loadingMessages && messages.length === 0 ? <p className="empty-state">No messages yet.</p> : null}
+
+            {messages.map((message) => (
+              <article key={message.id} className={`message message-${message.role}`}>
+                <div className="message-meta">
+                  <strong>{message.role === "assistant" ? "Assistant" : "You"}</strong>
+                  <span>{formatTimestamp(message.createdAt)}</span>
+                </div>
+                {message.role === "assistant" && message.providerID && message.modelID ? (
+                  <div className="message-model">{`${message.providerID}/${message.modelID}`}</div>
+                ) : null}
+                <p>{message.text}</p>
+              </article>
+            ))}
+
+            {sending ? <div className="typing-indicator">Working on a reply...</div> : null}
+          </section>
+
+          <form className="composer" onSubmit={onSubmit}>
+            <textarea
+              aria-label="Message"
+              className="composer-input"
+              disabled={sending}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={onComposerKeyDown}
+              placeholder="Ask a question or describe the task"
+              rows={3}
+              value={draft}
+            />
+            <div className="composer-actions">
+              <p className="muted">Enter to send. Shift+Enter for a new line.</p>
+              <button className="primary-button" disabled={sending || !draft.trim()} type="submit">
+                {sending ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </form>
+        </main>
+      </div>
     </div>
   );
 }
