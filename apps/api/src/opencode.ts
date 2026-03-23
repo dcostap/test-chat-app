@@ -4,33 +4,25 @@ import {
   type ChatSummary,
   type ProviderSelection,
 } from "@enterprise-demo/shared";
+import { createOpencodeClient } from "@opencode-ai/sdk";
 
-const textDecoder = new TextDecoder();
+type ClientWrapper = ReturnType<typeof createOpencodeClient>;
 
-type OpencodeSession = {
-  id: string;
-  title?: string | null;
-  updatedAt?: string | null;
-  time?: {
-    updated?: string | null;
-    created?: string | null;
-  };
-};
+function unwrapData<T>(value: unknown): T {
+  const fields = value as { data?: T };
+  if (fields && "data" in fields && fields.data !== undefined) {
+    return fields.data;
+  }
+  return value as T;
+}
 
-type OpencodeMessageEnvelope = {
-  info?: {
-    id: string;
-    role?: string;
-    createdAt?: string | null;
-    time?: {
-      created?: string | null;
-    };
-  };
-  parts?: Array<Record<string, unknown>>;
-};
-
-function joinUrl(baseUrl: string, pathname: string): string {
-  return new URL(pathname, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+function toIsoString(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+  return null;
 }
 
 function extractText(parts: Array<Record<string, unknown>> | undefined): string {
@@ -43,85 +35,72 @@ function extractText(parts: Array<Record<string, unknown>> | undefined): string 
     .trim();
 }
 
-function toChatSummary(session: OpencodeSession): ChatSummary {
-  return {
-    id: session.id,
-    title: session.title?.trim() || DEFAULT_NEW_CHAT_TITLE,
-    updatedAt: session.updatedAt ?? session.time?.updated ?? session.time?.created ?? null,
-  };
-}
-
-function toChatMessage(message: OpencodeMessageEnvelope): ChatMessage {
-  const role = message.info?.role;
-
-  return {
-    id: message.info?.id ?? crypto.randomUUID(),
-    role: role === "assistant" || role === "system" ? role : "user",
-    text: extractText(message.parts),
-    createdAt: message.info?.createdAt ?? message.info?.time?.created ?? null,
-  };
+function mapRole(role: unknown): "user" | "assistant" | "system" {
+  if (role === "assistant" || role === "system") return role;
+  return "user";
 }
 
 export class OpencodeClient {
+  private readonly client: ClientWrapper;
+  private readonly authorization: string | null;
+  private readonly baseUrl: string;
+
   constructor(
-    private readonly baseUrl: string,
-    private readonly username?: string,
-    private readonly password?: string,
-  ) {}
+    baseUrl: string,
+    username?: string,
+    password?: string,
+  ) {
+    this.baseUrl = baseUrl;
+    this.authorization =
+      password && password.length > 0
+        ? `Basic ${Buffer.from(`${username ?? "opencode"}:${password}`).toString("base64")}`
+        : null;
 
-  private async request<T>(pathname: string, init?: RequestInit): Promise<T> {
-    const headers = new Headers(init?.headers);
-    headers.set("Accept", "application/json");
+    this.client = createOpencodeClient({
+      baseUrl,
+      responseStyle: "data",
+      throwOnError: true,
+      fetch: async (request: Request) => {
+        const nextRequest = new Request(request);
+        if (this.authorization) {
+          nextRequest.headers.set("Authorization", this.authorization);
+        }
 
-    if (init?.body && !headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
-
-    if (this.password) {
-      const auth = Buffer.from(`${this.username ?? "opencode"}:${this.password}`).toString("base64");
-      headers.set("Authorization", `Basic ${auth}`);
-    }
-
-    const response = await fetch(joinUrl(this.baseUrl, pathname), {
-      ...init,
-      headers,
+        return fetch(nextRequest);
+      },
     });
-
-    if (!response.ok) {
-      const body = await response.arrayBuffer();
-      const text = textDecoder.decode(body);
-      throw new Error(`OpenCode request failed (${response.status}): ${text || response.statusText}`);
-    }
-
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    const text = await response.text();
-    if (!text.trim()) {
-      return undefined as T;
-    }
-
-    try {
-      return JSON.parse(text) as T;
-    } catch (error) {
-      throw new Error(
-        `OpenCode returned a non-JSON response for ${pathname}: ${
-          error instanceof Error ? error.message : "Unknown parse error"
-        }`,
-      );
-    }
   }
 
   async health() {
-    return this.request<{ healthy: boolean; version: string }>("/global/health");
+    const headers = new Headers();
+    if (this.authorization) {
+      headers.set("Authorization", this.authorization);
+    }
+
+    const response = await fetch(new URL("/global/health", this.baseUrl), { headers });
+    if (!response.ok) {
+      throw new Error(`OpenCode health request failed (${response.status})`);
+    }
+
+    return response.json() as Promise<{ healthy: boolean; version: string }>;
   }
 
   async listChats(): Promise<ChatSummary[]> {
-    const sessions = await this.request<OpencodeSession[]>("/session");
-    return sessions
-      .map(toChatSummary)
-      .sort((a, b) => {
+    const result = unwrapData<Array<{
+      id: string;
+      title?: string | null;
+      time?: { updated?: number | string | null; created?: number | string | null };
+    }>>(await this.client.session.list({
+      responseStyle: "data",
+      throwOnError: true,
+    }));
+    return result
+      .map((session) => ({
+        id: session.id,
+        title: session.title?.trim() || DEFAULT_NEW_CHAT_TITLE,
+        updatedAt: toIsoString(session.time?.updated) ?? toIsoString(session.time?.created),
+      }))
+      .sort((a: ChatSummary, b: ChatSummary) => {
         const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
         const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
         return bTime - aTime;
@@ -129,36 +108,68 @@ export class OpencodeClient {
   }
 
   async createChat(title?: string): Promise<ChatSummary> {
-    const session = await this.request<OpencodeSession>("/session", {
-      method: "POST",
-      body: JSON.stringify({
+    const result = unwrapData<{
+      id: string;
+      title?: string | null;
+      time?: { updated?: number | string | null; created?: number | string | null };
+    }>(await this.client.session.create({
+      responseStyle: "data",
+      throwOnError: true,
+      body: {
         title: title?.trim() || DEFAULT_NEW_CHAT_TITLE,
-      }),
-    });
+      },
+    }));
 
-    return toChatSummary(session);
+    return {
+      id: result.id,
+      title: result.title?.trim() || DEFAULT_NEW_CHAT_TITLE,
+      updatedAt: toIsoString(result.time?.updated) ?? toIsoString(result.time?.created),
+    };
   }
 
   async listMessages(chatId: string): Promise<ChatMessage[]> {
-    const messages = await this.request<OpencodeMessageEnvelope[]>(`/session/${chatId}/message`);
-    return messages.map(toChatMessage).filter((message) => message.text.length > 0);
+    const result = unwrapData<
+      Array<{
+        info: {
+          id: string;
+          role?: string | null;
+          time?: { created?: number | string | null };
+        };
+        parts?: Array<Record<string, unknown>>;
+      }>
+    >(await this.client.session.messages({
+      responseStyle: "data",
+      throwOnError: true,
+      path: { id: chatId },
+    }));
+
+    return result
+      .map((message) => ({
+        id: message.info.id,
+        role: mapRole(message.info.role),
+        text: extractText(message.parts as Array<Record<string, unknown>>),
+        createdAt: toIsoString(message.info.time?.created),
+      }))
+      .filter((message: ChatMessage) => message.text.length > 0);
   }
 
   async sendMessage(chatId: string, text: string, selection?: ProviderSelection): Promise<ChatMessage[]> {
-    const body: Record<string, unknown> = {
-      parts: [{ type: "text", text }],
-    };
+    const model =
+      selection?.providerID && selection?.modelID
+        ? {
+            providerID: selection.providerID,
+            modelID: selection.modelID,
+          }
+        : undefined;
 
-    if (selection?.providerID || selection?.modelID) {
-      body.model = {
-        providerID: selection?.providerID,
-        modelID: selection?.modelID,
-      };
-    }
-
-    await this.request<OpencodeMessageEnvelope>(`/session/${chatId}/message`, {
-      method: "POST",
-      body: JSON.stringify(body),
+    await this.client.session.prompt({
+      responseStyle: "data",
+      throwOnError: true,
+      path: { id: chatId },
+      body: {
+        model,
+        parts: [{ type: "text", text }],
+      },
     });
 
     return this.listMessages(chatId);
