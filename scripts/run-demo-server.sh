@@ -34,16 +34,16 @@ echo "Starting OpenCode on 127.0.0.1:4096"
 opencode serve --hostname 127.0.0.1 --port 4096 &
 OPENCODE_PID=$!
 
-echo "Waiting for OpenCode health endpoint"
+echo "Waiting for OpenCode port 4096"
 for _ in {1..60}; do
-  if curl -fsS "http://127.0.0.1:4096/global/health" >/dev/null 2>&1; then
+  if bash -c "exec 3<>/dev/tcp/127.0.0.1/4096" >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
 
-if ! curl -fsS "http://127.0.0.1:4096/global/health" >/dev/null 2>&1; then
-  echo "OpenCode did not become ready in time"
+if ! bash -c "exec 3<>/dev/tcp/127.0.0.1/4096" >/dev/null 2>&1; then
+  echo "OpenCode port 4096 did not become ready in time"
   exit 1
 fi
 
