@@ -30,6 +30,14 @@ trap cleanup EXIT INT TERM
 
 cd "$ROOT_DIR"
 
+if command -v fuser >/dev/null 2>&1; then
+  fuser -k 4096/tcp >/dev/null 2>&1 || true
+  fuser -k 3001/tcp >/dev/null 2>&1 || true
+else
+  pkill -f "opencode serve --hostname 127.0.0.1 --port 4096" >/dev/null 2>&1 || true
+  pkill -f "tsx watch src/index.ts" >/dev/null 2>&1 || true
+fi
+
 echo "Starting OpenCode on 127.0.0.1:4096"
 opencode serve --hostname 127.0.0.1 --port 4096 &
 OPENCODE_PID=$!
