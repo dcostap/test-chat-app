@@ -8,7 +8,7 @@
   line-height: 1.45;
   font-weight: 400;
   color: #e7ebf7;
-  background: #0f1117;
+  background: #121316;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -29,7 +29,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #0f1117;
+  background: #121316;
 }
 
 button,
@@ -45,7 +45,7 @@ button {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
-  background: #111318;
+  background: #121316;
 }
 
 .sidebar {
@@ -53,8 +53,8 @@ button {
   flex-direction: column;
   gap: 16px;
   padding: 14px 12px 12px;
-  background: #161922;
-  border-right: 1px solid #232834;
+  background: #171b2a;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .sidebar-header,
@@ -108,13 +108,11 @@ button {
   color: #d7dcec;
   text-align: left;
   cursor: pointer;
-  border: 1px solid transparent;
 }
 
 .chat-list-item:hover,
 .chat-list-item.is-active {
-  background: #202532;
-  border-color: #2c3342;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .chat-list-title {
@@ -135,13 +133,12 @@ button {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-height: 100vh;
-  background: #15171d;
+  background: #181818;
 }
 
 .chat-header {
   align-items: flex-start;
   padding: 18px 24px 12px;
-  border-bottom: 1px solid #20242e;
 }
 
 .chat-header h2 {
@@ -154,29 +151,17 @@ button {
   justify-content: flex-end;
 }
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #1b1f28;
-  border: 1px solid #2a3040;
-  color: #a8b1c7;
+.header-meta-text {
+  color: #7f8697;
   font-size: 0.74rem;
   white-space: nowrap;
-}
-
-.subtle-pill {
-  color: #8f98af;
 }
 
 .error-banner {
   margin: 12px 24px 0;
   padding: 10px 12px;
-  border: 1px solid #5a2d34;
   border-radius: 8px;
-  background: #2a171b;
+  background: rgba(90, 45, 52, 0.28);
   color: #f2b3bd;
   font-size: 0.9rem;
 }
@@ -186,21 +171,23 @@ button {
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 22px 24px;
+  gap: 20px;
+  padding: 18px 24px 22px;
 }
 
 .message {
   max-width: min(860px, 92%);
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid #262b36;
-  background: #171b22;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .message-user {
   align-self: flex-end;
-  background: #202632;
+  max-width: min(620px, 78%);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #23262e;
 }
 
 .message-assistant,
@@ -210,20 +197,27 @@ button {
 
 .message-meta {
   justify-content: flex-start;
-  margin-bottom: 6px;
-  color: #8b94ab;
-  font-size: 0.77rem;
+  margin-bottom: 8px;
+  color: #767d8e;
+  font-size: 0.74rem;
 }
 
 .message-model {
-  margin-bottom: 8px;
-  color: #6f7890;
-  font-size: 0.73rem;
+  margin-bottom: 10px;
+  color: #666e81;
+  font-size: 0.72rem;
 }
 
 .message p {
   margin: 0;
   white-space: pre-wrap;
+  color: #e8ebf2;
+}
+
+.message-placeholder {
+  margin: 8px 0 0;
+  color: #888f9f;
+  font-size: 0.92rem;
 }
 
 .typing-indicator {
@@ -233,8 +227,7 @@ button {
 
 .composer {
   padding: 14px 24px 18px;
-  border-top: 1px solid #20242e;
-  background: #15171d;
+  background: #181818;
 }
 
 .composer-input {
@@ -242,9 +235,9 @@ button {
   min-height: 74px;
   padding: 12px 14px;
   resize: none;
-  border: 1px solid #2a3040;
-  border-radius: 10px;
-  background: #11141a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: #1d1d1d;
   color: #edf1fc;
   outline: none;
 }
@@ -254,7 +247,7 @@ button {
 }
 
 .composer-input:focus {
-  border-color: #3a4255;
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .composer-actions {
@@ -262,24 +255,28 @@ button {
   margin-top: 10px;
 }
 
-.primary-button {
+.primary-button,
+.ghost-button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: 8px;
-  background: #e7ebf7;
-  color: #13161c;
   font-size: 0.86rem;
-  font-weight: 600;
   cursor: pointer;
 }
 
-.secondary-button {
-  background: #1d2230;
-  color: #dde3f3;
-  border: 1px solid #2c3342;
+.primary-button {
+  background: #dfe5f3;
+  color: #13161c;
+  font-weight: 600;
 }
 
-.primary-button:disabled {
+.ghost-button {
+  background: transparent;
+  color: #a8b0c3;
+}
+
+.primary-button:disabled,
+.ghost-button:disabled {
   opacity: 0.55;
   cursor: default;
 }
@@ -305,7 +302,7 @@ button {
 
   .sidebar {
     border-right: none;
-    border-bottom: 1px solid #232834;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .sidebar-section {

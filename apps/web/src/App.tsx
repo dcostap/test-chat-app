@@ -208,7 +208,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h1>Assistant</h1>
-          <button className="primary-button secondary-button" onClick={() => void createChat()} type="button">
+          <button className="ghost-button" onClick={() => void createChat()} type="button">
             New chat
           </button>
         </div>
@@ -247,9 +247,9 @@ export default function App() {
         <header className="chat-header">
           <h2>{selectedChat?.title ?? DEFAULT_NEW_CHAT_TITLE}</h2>
           <div className="chat-header-meta">
-            {configuredModelLabel ? <span className="status-pill">{configuredModelLabel}</span> : null}
+            {configuredModelLabel ? <span className="header-meta-text">{configuredModelLabel}</span> : null}
             {selectedAssistantModel?.providerID && selectedAssistantModel.modelID ? (
-              <span className="status-pill subtle-pill">{selectedAssistantModel.providerID}/{selectedAssistantModel.modelID}</span>
+              <span className="header-meta-text">{selectedAssistantModel.providerID}/{selectedAssistantModel.modelID}</span>
             ) : null}
           </div>
         </header>
@@ -257,6 +257,7 @@ export default function App() {
         {error ? <p className="error-banner">{error}</p> : null}
 
         <section className="message-list" ref={messageListRef}>
+          {isDraftChat && messages.length === 0 ? <p className="message-placeholder">New chat</p> : null}
           {!isDraftChat && loadingMessages ? <p className="muted">Loading messages...</p> : null}
 
           {messages.map((message) => (
