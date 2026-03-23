@@ -33,6 +33,18 @@ Fast prototype monorepo for a simple chat UI backed by an OpenCode server.
 
 5. Open `http://localhost:5173`.
 
+### One-Command Backend On Linux
+
+For the demo server, you can start both OpenCode and the API in one SSH session:
+
+```bash
+export OPENROUTER_API_KEY=...
+export OPENCODE_SERVER_PASSWORD=change-me
+npm run dev:backend
+```
+
+This keeps both processes in the foreground. If one exits, the script stops both.
+
 ### Frontend On Your PC, Backend On Linux
 
 If the frontend runs on your local machine and the API runs on `nelec-0`, start the web app with:

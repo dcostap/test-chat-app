@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace @enterprise-demo/api\" \"npm run dev --workspace @enterprise-demo/web\"",
+    "dev:backend": "bash ./scripts/run-demo-server.sh",
     "build": "npm run build --workspace @enterprise-demo/shared && npm run build --workspace @enterprise-demo/api && npm run build --workspace @enterprise-demo/web",
     "check": "npm run check --workspace @enterprise-demo/api && npm run check --workspace @enterprise-demo/web",
     "start": "npm run start --workspace @enterprise-demo/api"
