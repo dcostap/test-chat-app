@@ -64,7 +64,7 @@ npm run dev --workspace @enterprise-demo/web
 
 The frontend talks only to `apps/api`. The API proxies requests to OpenCode over HTTP.
 
-See [infra/opencode/opencode.jsonc](./infra/opencode/opencode.jsonc) for an example project config using a custom OpenRouter-compatible provider ID `orouter` with the raw OpenRouter model ID `minimax/minimax-m2.5:free`.
+See [infra/opencode/opencode.jsonc](./infra/opencode/opencode.jsonc) for an example project config using OpenCode's built-in `openrouter` provider with `openrouter/minimax/minimax-m2.5`.
 
 ### Linux Demo Server
 
